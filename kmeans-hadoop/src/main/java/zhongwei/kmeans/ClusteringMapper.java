@@ -23,7 +23,7 @@ import org.apache.hadoop.mapreduce.Mapper;
 * @date 2016年10月9日
 * @version 1.0
 */
-public class ClusteringMapper extends Mapper<LongWritable, Text, Object, Object> {
+public class ClusteringMapper extends Mapper<LongWritable, Text, Text, Text> {
 	private List<Point> centers = new ArrayList<Point>();
 	private List<Cluster> clusters = new ArrayList<Cluster>();
 	
@@ -32,7 +32,7 @@ public class ClusteringMapper extends Mapper<LongWritable, Text, Object, Object>
 			throws IOException, InterruptedException {
 		//TODO : 读取centers
 		Configuration conf = context.getConfiguration();
-		this.centers = KMeans.readCsv(conf.get("kmeans.centers.filepath"), 
+		this.centers = KMeans.readCenters(conf.get("kmeans.centers.filepath"), 
 				Integer.valueOf(conf.get("kmeans.dimension")));
 		
 		this.clusters.clear();;
@@ -43,7 +43,8 @@ public class ClusteringMapper extends Mapper<LongWritable, Text, Object, Object>
     		clusters.add(cluster);
     	}
 	}
-
+	
+	@Override
 	public void map(LongWritable ikey, Text ivalue, Context context) 
 			throws IOException, InterruptedException {
 		String[] str = ivalue.toString().split(",");
@@ -56,6 +57,6 @@ public class ClusteringMapper extends Mapper<LongWritable, Text, Object, Object>
 		
 		Point point = new Point(id, data);
 		Cluster cluster = point.chooseCluster(clusters, KMeans.distance);
-		context.write(cluster, point);
+		context.write(new Text(cluster.getId()), new Text(point.getDataString()));
 	}
 }

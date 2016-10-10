@@ -15,12 +15,15 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.IOUtils;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -39,8 +42,8 @@ public class ClusteringDriver extends Configured implements Tool {
 	public int DIMENSION = 2;
 
 	public int run(String args[]) throws Exception {
-		CENTERS_FILEPATH = args[4];//new String("");
-		DIMENSION = Integer.valueOf(args[2]);//2;
+		CENTERS_FILEPATH = "hdfs://10.2.43.230:9000/test/centers";//args[3];//new String("");
+		DIMENSION = 2;//Integer.valueOf(args[1]);//2;
 		
 		Configuration conf = new Configuration();
 		conf.set("kmeans.centers.filepath", CENTERS_FILEPATH);
@@ -48,14 +51,19 @@ public class ClusteringDriver extends Configured implements Tool {
 		
 		Job job = Job.getInstance(conf, "KMeans");
 		job.setJarByClass(zhongwei.kmeans.ClusteringDriver.class);
-		job.setMapperClass(Mapper.class);
-		job.setReducerClass(Reducer.class);
+		job.setMapperClass(ClusteringMapper.class);
+		job.setReducerClass(ClusteringReducer.class);
 
+		job.setMapOutputKeyClass(Text.class);
+		job.setMapOutputValueClass(Text.class);
 		job.setOutputKeyClass(Text.class);
 		job.setOutputValueClass(Text.class);
+		
+		job.setInputFormatClass(TextInputFormat.class);
+		job.setOutputFormatClass(TextOutputFormat.class);
 
-		FileInputFormat.setInputPaths(job, new Path("hdfs://192.168.1.119:9000/test/input"));
-		FileOutputFormat.setOutputPath(job, new Path("hdfs://192.168.1.119:9000/test/output"));
+		FileInputFormat.setInputPaths(job, new Path("hdfs://10.2.43.230:9000/test/input"));
+		FileOutputFormat.setOutputPath(job, new Path("hdfs://10.2.43.230:9000/test/output"));
 
 		if (!job.waitForCompletion(true))
 			return 1;
@@ -63,18 +71,21 @@ public class ClusteringDriver extends Configured implements Tool {
 		return 0;
 	}
 
+	/*
+	 * parm : args[0]-k, args[1]-dimension, args[2]-numIter, args[3]-centersfile
+	 */
 	public static void main(String[] args) throws Exception {
 		ClusteringDriver.init(args);
 		
 		int res = ToolRunner.run(new Configuration(), new ClusteringDriver(), args);
 		
-		int numIter = Integer.valueOf(args[3]);
+		int numIter = Integer.valueOf(args[2]);
 		int i = 0;
 		
 		while(i < numIter) {
 			if(res == 0) {
 				//TODO : copyfile, output->centers
-				ClusteringDriver.renameAndCross("hdfs://192.168.1.119:9000/test/output", args[4]);
+				ClusteringDriver.renameAndCross("hdfs://10.2.43.230:9000/test/output", args[3]);
 				res = ToolRunner.run(new Configuration(), new ClusteringDriver(), args);
 				i++;
 				System.out.println("Iterator: " + i);
@@ -88,11 +99,11 @@ public class ClusteringDriver extends Configured implements Tool {
 	
 	public static void init(String args[]) throws IOException {
 		String[] clist;  
-        int k = Integer.valueOf(args[1]);
-        String inpath = "hdfs://192.168.1.119:9000/test/input";  //cluster  
-        String outpath = args[4];  //center 
+        int k = Integer.valueOf(10);//args[0]);
+        String inpath = "hdfs://10.2.43.230:9000/test/input";  //cluster  
+        String outpath = "hdfs://10.2.43.230:9000/test/centers";//args[3];  //center 
         
-        String string = "";  
+        StringBuffer string = new StringBuffer("");  
          
         Configuration conf = new Configuration(); //读取hadoop文件系统的配置  
         conf.set("hadoop.job.ugi", "hadoop,hadoop");   
@@ -102,25 +113,25 @@ public class ClusteringDriver extends Configured implements Tool {
         try{   
             in = fs.open( new Path(inpath) );   
             IOUtils.copyBytes(in,out,50,false);  //用Hadoop的IOUtils工具方法来让这个文件的指定字节复制到标准输出流上   
-            clist = out.toString().split(" ");  
-            } finally {   
-                IOUtils.closeStream(in);  
-            }  
+            clist = out.toString().split("\n");  
+        } finally {   
+        	IOUtils.closeStream(in);  
+        }  
           
-        FileSystem filesystem = FileSystem.get(URI.create(outpath), conf);   
+        FileSystem filesystem = FileSystem.get(URI.create(outpath), conf);
           
         for(int i=0;i<k;i++)  
         {  
             int j=(int) (Math.random()*100) % clist.length;  
-            if(string.contains(clist[j]))  // choose the same one  
+            if(string.toString().contains(clist[j]))  // choose the same one  
             {  
                 k++;  
                 continue;  
             }  
-            string = string + clist[j].replace(" ", "") + " ";  
+            string.append(clist[j] + "\n");  
         }  
         OutputStream out2 = filesystem.create(new Path(outpath) );   
-        IOUtils.copyBytes(new ByteArrayInputStream(string.getBytes()), out2, 4096,true); //write string  
-        System.out.println(string);  
+        IOUtils.copyBytes(new ByteArrayInputStream(string.toString().getBytes()), out2, 4096,true); //write string  
+        //System.out.println(string);  
 	}
 }

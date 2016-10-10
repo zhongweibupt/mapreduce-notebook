@@ -3,8 +3,11 @@
  */
 package zhongwei.kmeans;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -12,6 +15,12 @@ import java.util.List;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.Set;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.IOUtils;
 
 /**
 * <p>Title: KMeans.java</p>
@@ -137,30 +146,35 @@ public class KMeans {
 	    }
     }
     
-    public static List<Point> readCsv(String datafilePath, int dimension) throws FileNotFoundException {
+    public static List<Point> readCenters(String datafilePath, int dimension) throws IOException {
+    	String[] clist;
     	List<Point> points = new LinkedList<Point>();
     	
-    	File file = new File(datafilePath);
-		Scanner scanner = new Scanner(file);
-		scanner.useDelimiter("[,\r]");
-		
-		int i = 0;
-		while (scanner.hasNext()) {
-			//if(i == 0) {
-				//for(int j = 0; j <= dimension; j++)
-					//scanner.next();
-			//}
-			String id = scanner.next();
-			List<Double> data = new ArrayList<Double>();
-			
-			for(int j = 0; j < dimension; j++) {
-				data.add(Double.valueOf(scanner.next()).doubleValue());
-			}			
-			Point point = new Point(id, data);
-			points.add(point);
-			i++;
-	    }
-		
+    	Configuration conf = new Configuration(); //读取hadoop文件系统的配置  
+        conf.set("hadoop.job.ugi", "hadoop,hadoop");   
+        FileSystem fs = FileSystem.get(URI.create(datafilePath),conf); //FileSystem是用户操作HDFS的核心类，它获得URI对应的HDFS文件系统   
+        FSDataInputStream in = null;   
+        ByteArrayOutputStream out = new ByteArrayOutputStream();  
+        try{   
+            in = fs.open( new Path(datafilePath) );   
+            IOUtils.copyBytes(in,out,50,false);  //用Hadoop的IOUtils工具方法来让这个文件的指定字节复制到标准输出流上   
+            clist = out.toString().split("\n");  
+        } finally {   
+        	IOUtils.closeStream(in);  
+        }
+        
+        for(String line : clist) {
+        	String str[] = line.split(",");
+        	String id = str[0];
+        	List<Double> data = new ArrayList<Double>();
+        	for(int i = 0; i < str.length; i++) {
+        		if(i > 0)
+        			data.add(Double.valueOf(str[i]));
+        	}
+        	Point point = new Point(id, data);
+        	points.add(point);
+        }
+    	
 		return points;
     }
     

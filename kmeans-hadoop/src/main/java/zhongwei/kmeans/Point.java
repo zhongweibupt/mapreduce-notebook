@@ -33,6 +33,17 @@ public class Point {
 		return this.data;
 	}
 	
+	public String getDataString() {
+		StringBuffer buf = new StringBuffer();
+		for (int i = 0; i < this.dimension; i++) {  
+			buf.append(this.data.get(i));
+			if(i != this.dimension) {
+				buf.append(",");
+			}
+        }  
+		return buf.toString();
+	}
+	
 	public int getDimension() {
 		return this.dimension;
 	}
@@ -42,7 +53,7 @@ public class Point {
 	}
 	
 	public String getId() {
-		return this.Id;
+		return this.id;
 	}
 	
 	public void labelIt(String label) {
