@@ -37,7 +37,7 @@ public class Point {
 		StringBuffer buf = new StringBuffer();
 		for (int i = 0; i < this.dimension; i++) {  
 			buf.append(this.data.get(i));
-			if(i != this.dimension) {
+			if(i != this.dimension - 1) {
 				buf.append(",");
 			}
         }  

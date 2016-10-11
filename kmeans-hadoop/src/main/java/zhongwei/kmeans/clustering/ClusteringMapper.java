@@ -1,7 +1,7 @@
 /**
  * 
  */
-package zhongwei.kmeans;
+package zhongwei.kmeans.clustering;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -13,6 +13,10 @@ import org.apache.hadoop.hdfs.DFSClient.Conf;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
+
+import zhongwei.kmeans.Cluster;
+import zhongwei.kmeans.KMeans;
+import zhongwei.kmeans.Point;
 
 /**
 * <p>Title: ClusteringMapper.java</p>
